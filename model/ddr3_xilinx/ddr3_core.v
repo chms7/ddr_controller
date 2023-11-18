@@ -91,16 +91,33 @@ localparam DDR_START_DELAY   = 600000 / (1000 / DDR_MHZ); // 600uS
 localparam DDR_REFRESH_CYCLES= (64000*DDR_MHZ) / 8192;
 localparam DDR_BURST_LEN     = 8;
 
+  localparam CMD_LOAD_MODE      = 4'b0000; // 0
+  localparam CMD_REFRESH      = 4'b0001; // 1
+  localparam CMD_PRECHARGE      = 4'b0010; // 2
+  localparam CMD_ACTIVE      = 4'b0011; // 3
+  localparam CMD_WRITE    = 4'b0100; // 4
+  localparam CMD_READ     = 4'b0101; // 5
+  localparam CMD_ZQCL     = 4'b0110; // 6
+  localparam CMD_NOP      = 4'b0111; // 7
+  // FSM Encode
+  localparam STATE_INIT   = 4'd0;
+  localparam STATE_REFRESH    = 4'd1;
+  localparam STATE_PRECHARGE    = 4'd2;
+  localparam STATE_ACTIVATE    = 4'd3;
+  localparam STATE_WRITE  = 4'd4;
+  localparam STATE_READ   = 4'd5;
+  localparam STATE_IDLE   = 4'd7;
+  localparam STATE_DELAY  = 4'd8;
 // Command Encode
 localparam CMD_W             = 4;
-localparam CMD_NOP           = 4'b0111;
-localparam CMD_ACTIVE        = 4'b0011;
-localparam CMD_READ          = 4'b0101;
-localparam CMD_WRITE         = 4'b0100;
-localparam CMD_PRECHARGE     = 4'b0010;
-localparam CMD_REFRESH       = 4'b0001;
-localparam CMD_LOAD_MODE     = 4'b0000;
-localparam CMD_ZQCL          = 4'b0110;
+// localparam CMD_NOP           = 4'b0111;
+// localparam CMD_ACTIVE        = 4'b0011;
+// localparam CMD_READ          = 4'b0101;
+// localparam CMD_WRITE         = 4'b0100;
+// localparam CMD_PRECHARGE     = 4'b0010;
+// localparam CMD_REFRESH       = 4'b0001;
+// localparam CMD_LOAD_MODE     = 4'b0000;
+// localparam CMD_ZQCL          = 4'b0110;
 
 // Mode Configuration
 // - DLL disabled (low speed only)
@@ -114,14 +131,14 @@ localparam MR3_REG           = 15'h0000;
 
 // SM states
 localparam STATE_W           = 4;
-localparam STATE_INIT        = 4'd0;
-localparam STATE_DELAY       = 4'd1;
-localparam STATE_IDLE        = 4'd2;
-localparam STATE_ACTIVATE    = 4'd3;
-localparam STATE_READ        = 4'd4;
-localparam STATE_WRITE       = 4'd5;
-localparam STATE_PRECHARGE   = 4'd6;
-localparam STATE_REFRESH     = 4'd7;
+// localparam STATE_INIT        = 4'd0;
+// localparam STATE_DELAY       = 4'd1;
+// localparam STATE_IDLE        = 4'd2;
+// localparam STATE_ACTIVATE    = 4'd3;
+// localparam STATE_READ        = 4'd4;
+// localparam STATE_WRITE       = 4'd5;
+// localparam STATE_PRECHARGE   = 4'd6;
+// localparam STATE_REFRESH     = 4'd7;
 
 localparam AUTO_PRECHARGE    = 10;
 localparam ALL_BANKS         = 10;
@@ -182,24 +199,21 @@ begin
     //-----------------------------------------
     // STATE_INIT
     //-----------------------------------------
-    STATE_INIT :
-    begin
+    STATE_INIT : begin
         if (refresh_q)
             next_state_r = STATE_IDLE;
     end
     //-----------------------------------------
     // STATE_IDLE
     //-----------------------------------------
-    STATE_IDLE :
-    begin
+    STATE_IDLE : begin
         // Disabled
         if (!cfg_enable_i)
             next_state_r = STATE_IDLE;
         // Pending refresh
         // Note: tRAS (open row time) cannot be exceeded due to periodic
         //        auto refreshes.
-        else if (refresh_q)
-        begin
+        else if (refresh_q) begin
             // Close open rows, then refresh
             if (|row_open_q)
                 next_state_r = STATE_PRECHARGE;
@@ -209,19 +223,16 @@ begin
             target_state_r = STATE_REFRESH;
         end
         // Access request
-        else if (ram_req_w)
-        begin
+        else if (ram_req_w) begin
             // Open row hit
-            if (row_open_q[addr_bank_w] && addr_row_w == active_row_q[addr_bank_w])
-            begin
+            if (row_open_q[addr_bank_w] && addr_row_w == active_row_q[addr_bank_w]) begin
                 if (!ram_rd_w)
                     next_state_r = STATE_WRITE;
                 else
                     next_state_r = STATE_READ;
             end
             // Row miss, close row, open new row
-            else if (row_open_q[addr_bank_w])
-            begin
+            else if (row_open_q[addr_bank_w]) begin
                 next_state_r   = STATE_PRECHARGE;
 
                 if (!ram_rd_w)
@@ -230,8 +241,7 @@ begin
                     target_state_r = STATE_READ;
             end
             // No open row, open row
-            else
-            begin
+            else begin
                 next_state_r   = STATE_ACTIVATE;
 
                 if (!ram_rd_w)
@@ -244,30 +254,26 @@ begin
     //-----------------------------------------
     // STATE_ACTIVATE
     //-----------------------------------------
-    STATE_ACTIVATE :
-    begin
+    STATE_ACTIVATE : begin
         // Proceed to read or write state
         next_state_r = target_state_q;
     end
     //-----------------------------------------
     // STATE_READ
     //-----------------------------------------
-    STATE_READ :
-    begin
+    STATE_READ : begin
         next_state_r = STATE_IDLE;
     end
     //-----------------------------------------
     // STATE_WRITE
     //-----------------------------------------
-    STATE_WRITE :
-    begin
+    STATE_WRITE : begin
         next_state_r = STATE_IDLE;
     end
     //-----------------------------------------
     // STATE_PRECHARGE
     //-----------------------------------------
-    STATE_PRECHARGE :
-    begin
+    STATE_PRECHARGE : begin
         // Closing row to perform refresh
         if (target_state_q == STATE_REFRESH)
             next_state_r = STATE_REFRESH;
@@ -278,12 +284,10 @@ begin
     //-----------------------------------------
     // STATE_REFRESH
     //-----------------------------------------
-    STATE_REFRESH :
-    begin
+    STATE_REFRESH : begin
         next_state_r = STATE_IDLE;
     end
-    default:
-        ;
+    default: ;
    endcase
 end
 
@@ -342,24 +346,21 @@ begin
     //-----------------------------------------
     // STATE_IDLE / Default (delays)
     //-----------------------------------------
-    default:
-    begin
+    default: begin
         if (!cfg_enable_i)
             row_open_q <= {DDR_BANKS{1'b0}};
     end
     //-----------------------------------------
     // STATE_ACTIVATE
     //-----------------------------------------
-    STATE_ACTIVATE :
-    begin
+    STATE_ACTIVATE : begin
         active_row_q[addr_bank_w]  <= addr_row_w;
         row_open_q[addr_bank_w]    <= 1'b1;
     end
     //-----------------------------------------
     // STATE_PRECHARGE
     //-----------------------------------------
-    STATE_PRECHARGE :
-    begin
+    STATE_PRECHARGE : begin
         // Precharge due to refresh, close all banks
         if (target_state_q == STATE_REFRESH)
         begin
@@ -383,8 +384,7 @@ reg [DDR_ROW_W-1:0]  addr_r;
 reg                  cke_r;
 reg [DDR_BANK_W-1:0] bank_r;
 
-always @ *
-begin
+always @ * begin
     command_r = CMD_NOP;
     addr_r    = {DDR_ROW_W{1'b0}};
     bank_r    = {DDR_BANK_W{1'b0}};
@@ -394,8 +394,7 @@ begin
     //-----------------------------------------
     // STATE_INIT
     //-----------------------------------------
-    STATE_INIT:
-    begin
+    STATE_INIT: begin
         // Assert CKE after 500uS
         if (refresh_timer_q > 2500)
             cke_r = 1'b0;
@@ -532,6 +531,22 @@ if (rst_i)
     write_ack_q <= 1'b0;
 else
     write_ack_q <= (state_q == STATE_WRITE) && cmd_accept_w;
+
+// mc_fifo_syn #(
+//     .WIDTH ( 16 ),
+//     .DEPTH ( 8 ))
+// u_mc_fifo (
+//     .clk_i                   ( clk_i        ),
+//     .rst_n_i                 ( ~rst_i      ),
+
+//     .wr_req_i                ( ram_req_w & ram_accept_w     ),
+//     .wr_data_i               ( inport_req_id_i    ),
+//     .wr_ready_o              ( id_fifo_space_w),
+
+//     .rd_req_i                ( ram_ack_w     ),
+//     .rd_data_o               ( inport_resp_id_o    ),
+//     .rd_valid_o              (    )
+// );
 
 ddr3_fifo
 #(

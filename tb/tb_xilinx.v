@@ -8,7 +8,7 @@ module tb_xilinx ;
 // Clock / Reset
 //-----------------------------------------------------------------
 `CLOCK_GEN(osc, 10)    // 100MHz
-`RESET_GEN(rst, 1000)
+`RESET_GEN(rst, 1000)  // delay 1000ns
 
 //-----------------------------------------------------------------
 // Misc
@@ -77,72 +77,72 @@ wire [  1:0]  ddr3_dqs_p_w;
 wire [  1:0]  ddr3_dqs_n_w;
 
 ddr3 u_ram (
-  .rst_n(ddr3_reset_n_w),
-  .ck(ddr3_ck_p_w),
-  .ck_n(ddr3_ck_n_w),
-  .cke(ddr3_cke_w),
-  .cs_n(ddr3_cs_n_w),
-  .ras_n(ddr3_ras_n_w),
-  .cas_n(ddr3_cas_n_w),
-  .we_n(ddr3_we_n_w),
-  .dm_tdqs(ddr3_dm_w),
-  .ba(ddr3_ba_w),
-  .addr(ddr3_addr_w),
-  .dq(ddr3_dq_w),
-  .dqs(ddr3_dqs_p_w),
-  .dqs_n(ddr3_dqs_n_w),
-  .tdqs_n(),
-  .odt(ddr3_odt_w)
+  .rst_n   (ddr3_reset_n_w),
+  .ck      (ddr3_ck_p_w),
+  .ck_n    (ddr3_ck_n_w),
+  .cke     (ddr3_cke_w),
+  .cs_n    (ddr3_cs_n_w),
+  .ras_n   (ddr3_ras_n_w),
+  .cas_n   (ddr3_cas_n_w),
+  .we_n    (ddr3_we_n_w),
+  .dm_tdqs (ddr3_dm_w),
+  .ba      (ddr3_ba_w),
+  .addr    (ddr3_addr_w),
+  .dq      (ddr3_dq_w),
+  .dqs     (ddr3_dqs_p_w),
+  .dqs_n   (ddr3_dqs_n_w),
+  .tdqs_n  (),
+  .odt     (ddr3_odt_w)
 );
 
 //-----------------------------------------------------------------
 // DDR PHY
 //-----------------------------------------------------------------
 ddr3_dfi_phy #(
-  .DQS_TAP_DELAY_INIT(27),
-  .DQ_TAP_DELAY_INIT(0),
-  .TPHY_RDLAT(5)
+  .DQS_TAP_DELAY_INIT (27),
+  .DQ_TAP_DELAY_INIT  (0),
+  .TPHY_RDLAT         (5)
 ) u_phy (
-  .clk_i(clk),
-  .clk_ddr_i(clk_ddr),
-  .clk_ddr90_i(clk_ddr_dqs),
-  .clk_ref_i(clk_ref),
-  .rst_i(rst),
+  .clk_i              (clk),
+  .clk_ddr_i          (clk_ddr),
+  .clk_ddr90_i        (clk_ddr_dqs),
+  .clk_ref_i          (clk_ref),
+  .rst_i              (rst),
 
-  .dfi_address_i(dfi_address),
-  .dfi_bank_i(dfi_bank),
-  .dfi_cas_n_i(dfi_cas_n),
-  .dfi_cke_i(dfi_cke),
-  .dfi_cs_n_i(dfi_cs_n),
-  .dfi_odt_i(dfi_odt),
-  .dfi_ras_n_i(dfi_ras_n),
-  .dfi_reset_n_i(dfi_reset_n),
-  .dfi_we_n_i(dfi_we_n),
+  .dfi_address_i      (dfi_address),
+  .dfi_bank_i         (dfi_bank),
+  .dfi_cas_n_i        (dfi_cas_n),
+  .dfi_cke_i          (dfi_cke),
+  .dfi_cs_n_i         (dfi_cs_n),
+  .dfi_odt_i          (dfi_odt),
+  .dfi_ras_n_i        (dfi_ras_n),
+  .dfi_reset_n_i      (dfi_reset_n),
+  .dfi_we_n_i         (dfi_we_n),
 
-  .dfi_wrdata_i(dfi_wrdata),
-  .dfi_wrdata_en_i(dfi_wrdata_en),
-  .dfi_wrdata_mask_i(dfi_wrdata_mask),
-  .dfi_rddata_en_i(dfi_rddata_en),
+  .dfi_wrdata_i       (dfi_wrdata),
+  .dfi_wrdata_en_i    (dfi_wrdata_en),
+  .dfi_wrdata_mask_i  (dfi_wrdata_mask),
+  .dfi_rddata_en_i    (dfi_rddata_en),
 
-  .dfi_rddata_o(dfi_rddata),
-  .dfi_rddata_valid_o(dfi_rddata_valid),
-  .dfi_rddata_dnv_o(),
+  .dfi_rddata_o       (dfi_rddata),
+  .dfi_rddata_valid_o (dfi_rddata_valid),
+  .dfi_rddata_dnv_o   (),
 
-  .ddr3_ck_p_o(ddr3_ck_p_w),
-  .ddr3_ck_n_o(ddr3_ck_n_w),
-  .ddr3_cke_o(ddr3_cke_w),
-  .ddr3_reset_n_o(ddr3_reset_n_w),
-  .ddr3_ras_n_o(ddr3_ras_n_w),
-  .ddr3_cas_n_o(ddr3_cas_n_w),
-  .ddr3_we_n_o(ddr3_we_n_w),
-  .ddr3_cs_n_o(ddr3_cs_n_w),
-  .ddr3_ba_o(ddr3_ba_w),
-  .ddr3_addr_o(ddr3_addr_w),
-  .ddr3_odt_o(ddr3_odt_w),
-  .ddr3_dm_o(ddr3_dm_w),
-  .ddr3_dqs_p_io(ddr3_dqs_p_w),
-  .ddr3_dqs_n_io(ddr3_dqs_n_w),
-  .ddr3_dq_io(ddr3_dq_w)
+  .ddr3_ck_p_o        (ddr3_ck_p_w),
+  .ddr3_ck_n_o        (ddr3_ck_n_w),
+  .ddr3_cke_o         (ddr3_cke_w),
+  .ddr3_reset_n_o     (ddr3_reset_n_w),
+  .ddr3_ras_n_o       (ddr3_ras_n_w),
+  .ddr3_cas_n_o       (ddr3_cas_n_w),
+  .ddr3_we_n_o        (ddr3_we_n_w),
+  .ddr3_cs_n_o        (ddr3_cs_n_w),
+  .ddr3_ba_o          (ddr3_ba_w),
+  .ddr3_addr_o        (ddr3_addr_w),
+  .ddr3_odt_o         (ddr3_odt_w),
+  .ddr3_dm_o          (ddr3_dm_w),
+  .ddr3_dqs_p_io      (ddr3_dqs_p_w),
+  .ddr3_dqs_n_io      (ddr3_dqs_n_w),
+  .ddr3_dq_io         (ddr3_dq_w)
 );
 
 //-----------------------------------------------------------------
@@ -164,7 +164,7 @@ ddr3_core #(
     ,.DDR_READ_LATENCY(4)
     ,.DDR_MHZ(100)
 ) u_ddr_core (
-     .clk_i(clk)
+    .clk_i(clk)
     ,.rst_i(rst)
 
     // Configuration (unused)
