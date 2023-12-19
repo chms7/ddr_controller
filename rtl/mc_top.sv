@@ -7,41 +7,49 @@
  */
 
 module mc_top #(
-  localparam DDR_CORE_FREQ_MHZ  = 100,
-  localparam DDR_IO_FREQ_MHZ    = 4*DDR_CORE_FREQ_MHZ, // 8n-prefetch
-  localparam DDR_PHY_FREQ_MHZ   = 4*DDR_CORE_FREQ_MHZ, // 8n-prefetch
-  localparam DDR_MC_FREQ_MHZ    = 400,
-  localparam DDR_FREQ_MHZ = 100,  // 100 MHz
-  localparam DDR_DQ_W     = 16,   // DQ width
-  localparam DDR_BA_W     = 3,    // bank address
-  localparam DDR_RA_W     = 15,   // row  address 14?
-  localparam DDR_CA_W     = 10,   // col  address
-  localparam DDR_ADDR_W   = DDR_RA_W,
-  localparam DDR_BL       = 8,    // burst length
-  localparam DFI_DATA_W   = 32,
-  localparam MEM_ADDR_W   = 32,
-  localparam MEM_DATA_W   = DDR_DQ_W*DDR_BL,
-  localparam MEM_MASK_W   = MEM_DATA_W/8
+  // DDR
+  parameter FREQ_CORE_MHZ     = 100,
+  parameter FREQ_IO_MHZ       = 4*FREQ_CORE_MHZ, // 8n-prefetch
+  parameter FREQ_PHY_MHZ      = 4*FREQ_CORE_MHZ, // 8n-prefetch
+  parameter FREQ_RATIO_PHY2MC = 1,      // 1:1
+  parameter FREQ_MC_MHZ       = FREQ_PHY_MHZ/FREQ_RATIO_PHY2MC,
+  parameter DDR_FREQ_MHZ      = 100,    // 100 MHz
+  parameter DDR_DQ_W          = 16,     // DQ width
+  parameter DDR_BA_W          = 3,      // Bank address
+  parameter DDR_RA_W          = 15,     // Row  address
+  parameter DDR_CA_W          = 10,     // Col  address
+  parameter DDR_ADDR_W        = DDR_RA_W,
+  parameter DDR_ADDR_ENCODE   = "BRC",  // BRC: | bank | row  | col  |
+                                        // RBC: | row  | bank | col  |
+  parameter DDR_BL            = 8,      // Burst length
+  parameter DDR_BT            = "SEQ",  // Burst type
+  // DFI
+  parameter DFI_DATA_W        = 32,
+  // MEM
+  parameter MEM_ADDR_W        = 32,
+  parameter MEM_DATA_W        = DDR_DQ_W*DDR_BL,
+  parameter MEM_MASK_W        = MEM_DATA_W/8
 ) (
   input                     clk_i,
   input                     rst_n_i,
 
-  // memory interface
-  input  [MEM_ADDR_W  -1:0] mem_addr_i,
+  // Memory Interface
   input  [MEM_MASK_W  -1:0] mem_wr_i,
   input                     mem_rd_i,
+  input  [MEM_ADDR_W  -1:0] mem_addr_i,
   input  [MEM_DATA_W  -1:0] mem_wrdata_i,
   output [MEM_DATA_W  -1:0] mem_rddata_o,
   output                    mem_accept_o,
   output                    mem_ack_o,
 
-  // dfi interface
+  // DFI Interface
   output [DDR_RA_W    -1:0] dfi_address_o,
   output [DDR_BA_W    -1:0] dfi_bank_o,
   output                    dfi_cs_n_o,
   output                    dfi_ras_n_o,
   output                    dfi_cas_n_o,
   output                    dfi_we_n_o,
+
   output                    dfi_cke_o,
   output                    dfi_reset_n_o,
   output                    dfi_odt_o,
@@ -61,6 +69,15 @@ module mc_top #(
   // ---------------------------------------------------------------------------
   // Parameters & Defines
   // ---------------------------------------------------------------------------
+  // FSM Encode
+  localparam STATE_INIT   = 4'd0;
+  localparam STATE_REF    = 4'd1;
+  localparam STATE_PRE    = 4'd2;
+  localparam STATE_ACT    = 4'd3;
+  localparam STATE_WRITE  = 4'd4;
+  localparam STATE_READ   = 4'd5;
+  localparam STATE_IDLE   = 4'd7;
+
   // Command Encode
   localparam CMD_MRS      = 4'b0000; // 0
   localparam CMD_REF      = 4'b0001; // 1
@@ -70,77 +87,88 @@ module mc_top #(
   localparam CMD_READ     = 4'b0101; // 5
   localparam CMD_ZQCL     = 4'b0110; // 6
   localparam CMD_NOP      = 4'b0111; // 7
-  // FSM Encode
-  localparam STATE_INIT   = 4'd0;
-  localparam STATE_REF    = 4'd1;
-  localparam STATE_PRE    = 4'd2;
-  localparam STATE_ACT    = 4'd3;
-  localparam STATE_WRITE  = 4'd4;
-  localparam STATE_READ   = 4'd5;
-  localparam STATE_IDLE   = 4'd7;
-  // Mode Configuration
-  // - DLL disabled (low speed only)
-  // - CL=6
-  // - AL=0
-  // - CWL=6
-  localparam MRS_MR0_BL = 2'b00; // Fixed BL8
-  localparam MRS_MR0_BT = 1'b0;   // Sequential
-  localparam MRS_MR0  = 15'h0120;
-  localparam MRS_MR1  = 15'h0001;
-  localparam MRS_MR2  = 15'h0008;
-  localparam MRS_MR3  = 15'h0000;
-  // DDR Timing
-  localparam CYCLE_TIME_NS  = 1000 / DDR_FREQ_MHZ;
 
-  localparam DDR_AL_C       = 0;
-  localparam DDR_CWL_C      = 6;
-  localparam DDR_WL_C       = DDR_AL_C + DDR_CWL_C;
-  localparam DDR_CL_C       = 6;
-  localparam DDR_RL_C       = DDR_AL_C + DDR_CL_C;
-  // localparam DDR_RL_C       = 5;
-  // localparam DDR_BL       = 8;
+  // Mode Register Configuration
+  localparam MRS_MR0_BL     = 2'b00;   // BL = 8
+  localparam MRS_MR0_BT     = 1'b0;    // Sequential
+  localparam MRS_MR0_CL     = 4'b0100; // CL = 6 CK
+  localparam MRS_MR0_DLL    = 1'b1;    // DLL Reset: yes
+  localparam MRS_MR0_WR     = 3'b000;  // WR = 16 CK
+  localparam MRS_MR0_PD     = 1'b0;    // Precharge PD: DLL off
+  localparam MRS_MR0  = {2'd0, MRS_MR0_PD, MRS_MR0_WR, MRS_MR0_DLL, 1'b0,
+                         MRS_MR0_CL[3:1], MRS_MR0_BT, MRS_MR0_CL[0], MRS_MR0_BL};
+
+  localparam MRS_MR1_DLL    = 1'b1;    // DLL: disable
+  localparam MRS_MR1_ODS    = 2'b00;   // ODS: RZQ/6 (40ohm)
+  localparam MRS_MR1_RTT    = 3'b000;  // RTT,norm: disable
+  localparam MRS_MR1_AL     = 2'b00;   // AL = 0 CK
+  localparam MRS_MR1_WL     = 1'b0;    // Write Leveling: disable
+  localparam MRS_MR1_TDQS   = 1'b0;    // TDQS: disable
+  localparam MRS_MR1_Qoff   = 1'b0;    // Q off
+  localparam MRS_MR1  = {2'd0, MRS_MR1_Qoff, MRS_MR1_TDQS, 1'b0, MRS_MR1_RTT[2], 1'b0,
+                         MRS_MR1_WL, MRS_MR1_RTT[1], MRS_MR1_ODS[1], MRS_MR1_AL,
+                         MRS_MR1_RTT[0], MRS_MR1_ODS[0], MRS_MR1_DLL};
+
+  localparam MRS_MR2_CWL    = 3'b001;  // CWL = 6 CK
+  localparam MRS_MR2_ASR    = 1'b0;    // ASR: disabled
+  localparam MRS_MR2_SRT    = 1'b0;    // SRT: normal
+  localparam MRS_MR2_RTTWR  = 2'b00;   // RTT(WR): disable
+  localparam MRS_MR2 = {4'd0, MRS_MR2_RTTWR, 1'd0, MRS_MR2_SRT, MRS_MR2_ASR, MRS_MR2_CWL, 3'd0};
+
+  localparam MRS_MR3_MPR_RF = 2'b00;   // MPR READ Function: Predefined pattern
+  localparam MRS_MR3_MPR    = 1'b0;    // MPR Enable: Normal DRAM operations
+  localparam MRS_MR3 = {12'd0, MRS_MR3_MPR, MRS_MR3_MPR_RF};
+
+  // DDR Timing
+  localparam tCK_ns  = 1000 / DDR_FREQ_MHZ;
+
+  localparam nAL       = 0;
+  localparam nCWL      = 6;
+  localparam nWL       = nAL + nCWL;
+  localparam nCL       = 6;
+  localparam nRL       = nAL + nCL;
   
-  localparam DDR_TXPR_C     = 5;                    // 5 cycles
-  localparam DDR_TMRD_C     = 4;                    // 4 cycles
-  localparam DDR_TMOD_C     = 12;                   // 12 cycles
-  localparam DDR_TZQINIT_C  = 512;                  // 512 cycles
-  localparam DDR_TRP_C      = 15  / CYCLE_TIME_NS;  // 15 ns
-  localparam DDR_TRFC_C     = 260 / CYCLE_TIME_NS;  // 260 ns
-  localparam DDR_TRCD_C     = 15  / CYCLE_TIME_NS;  // 15 ns
-  localparam DDR_TWTR_C     = 4;                    // 4 cycles
-  localparam DDR_TCCD_C     = 4;                    // 4 cycles
-  // localparam DDR_TRP_C    = (15 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
-  // localparam DDR_TRFC_C   = (260 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
-  // localparam DDR_TRCD_C   = (15 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
-  // localparam DDR_TWTR_C   = 5 + 1;
+  localparam nXPR     = 5;            // 5 cycles
+  localparam nMRD     = 4;            // 4 cycles
+  localparam nMOD     = 12;           // 12 cycles
+  localparam nZQINIT  = 512;          // 512 cycles
+  localparam nRP      = 15  / tCK_ns; // 15 ns
+  localparam nRFC     = 260 / tCK_ns; // 260 ns
+  localparam nRCD     = 15  / tCK_ns; // 15 ns
+  localparam nWTR     = 4;            // 4 cycles
+  localparam nCCD     = 4;            // 4 cycles
+  // localparam nRP    = (15 + (tCK_ns-1)) / tCK_ns;
+  // localparam nRFC   = (260 + (tCK_ns-1)) / tCK_ns;
+  // localparam nRCD   = (15 + (tCK_ns-1)) / tCK_ns;
+  // localparam nWTR   = 5 + 1;
 
   // Standard R/W -> W->R (non-sequential)
-  localparam DDR_WTR_C = DDR_WL_C + DDR_BL + DDR_TWTR_C;
-  localparam DDR_WTW_C = DDR_TCCD_C;
-  localparam DDR_RW_NONSEQ_C = DDR_WL_C + DDR_BL + DDR_TWTR_C;
+  localparam DDR_WTR_C = nWL + DDR_BL + nWTR;
+  localparam DDR_WTW_C = nCCD;
+  localparam DDR_RW_NONSEQ_C = nWL + DDR_BL + nWTR;
   localparam DDR_RW_SEQ_C    = DDR_RW_NONSEQ_C + 1 - DDR_BL;
   // localparam DDR_RW_SEQ_C    = DDR_RW_NONSEQ_C + 1 - DDR_BL;
 
   // DDR Init: 700us + tXPR + (15?) + 3*tMRD + tMOD + tZQinit + tRP
-  localparam DDR_INIT_C     = 700000/CYCLE_TIME_NS + DDR_TXPR_C + 15 + 3*DDR_TMRD_C
-                                  + DDR_TMOD_C + DDR_TZQINIT_C + DDR_TRP_C;
-  localparam INIT_TIME_RST      = DDR_INIT_C - 200000 / CYCLE_TIME_NS;  // 200us
-  localparam INIT_TIME_CKE      = INIT_TIME_RST - 500000 / CYCLE_TIME_NS;   // 500us
-  localparam INIT_TIME_MRS      = INIT_TIME_CKE - DDR_TXPR_C - 15; // ?
-  localparam INIT_TIME_ZQCL     = INIT_TIME_MRS - 3*DDR_TMRD_C - DDR_TMOD_C;
-  localparam INIT_TIME_PRE      = INIT_TIME_ZQCL - DDR_TZQINIT_C;
+  localparam INIT_TIME_TOTAL     = 700000/tCK_ns + nXPR + 15 + 3*nMRD
+                                  + nMOD + nZQINIT + nRP;
+  localparam INIT_TIME_RST      = INIT_TIME_TOTAL - 200000 / tCK_ns;  // 200us
+  localparam INIT_TIME_CKE      = INIT_TIME_RST - 500000 / tCK_ns;   // 500us
+  localparam INIT_TIME_MRS      = INIT_TIME_CKE - nXPR - 15; // ?
+  localparam INIT_TIME_ZQCL     = INIT_TIME_MRS - 3*nMRD - nMOD;
+  localparam INIT_TIME_PRE      = INIT_TIME_ZQCL - nZQINIT;
 
   // PHY Timing
-  localparam TPHY_WRLAT_C = 3;
-  localparam TRDDATA_EN_C = 4;
-  localparam TPHY_RDLAT_C = 4;
-  // localparam TPHY_WRLAT_C        = DDR_WL_C-1;
-  // localparam TPHY_RDLAT_C        = DDR_RL_C-1;
+  localparam nPHY_WRLAT = 3;
+  localparam nRDDATA_EN = 4;
+  localparam nPHY_RDLAT = 4;
+  // localparam nPHY_WRLAT        = nWL-1;
+  // localparam nPHY_RDLAT        = nRL-1;
   
   // Refresh Timer
-  localparam DDR_REF_C  = (64000000/(2**DDR_RA_W)) / CYCLE_TIME_NS; // refresh per 64ms/RA
+  localparam DDR_REF_C  = (64000000/(2**DDR_RA_W)) / tCK_ns; // refresh per 64ms/RA
   // localparam DDR_REF_C = (64000*DDR_FREQ_MHZ) / 8192;
-  localparam REF_TIMER_W    = 15;
+  localparam REF_TIMER_W    = 17;
   
   localparam ADDR_BIT_ALLBANK = 10;
   localparam ADDR_BIT_AUTOPRE = 10;
@@ -149,14 +177,23 @@ module mc_top #(
   // Input Process
   // ---------------------------------------------------------------------------
   // Address Decode
-  // BRC: | bank | row  | col  |
-  wire [DDR_BA_W-1:0] addr_bank_w = mem_addr_i[DDR_BA_W+DDR_RA_W+DDR_CA_W-1:DDR_RA_W+DDR_CA_W];
-  wire [DDR_RA_W-1:0] addr_row_w  = mem_addr_i[DDR_RA_W+DDR_CA_W-1:DDR_CA_W];
-  wire [DDR_CA_W-1:0] addr_col_w  = mem_addr_i[DDR_CA_W-1:0];
-  // // RBC: | row  | bank | col  |
-  // wire [DDR_RA_W-1:0] addr_row_w  = mem_addr_i[DDR_RA_W+DDR_BA_W+DDR_CA_W-1:DDR_BA_W+DDR_CA_W];
-  // wire [DDR_BA_W-1:0] addr_bank_w = mem_addr_i[DDR_BA_W+DDR_CA_W-1:DDR_CA_W];
-  // wire [DDR_CA_W-1:0] addr_col_w  = mem_addr_i[DDR_CA_W-1:0];
+  wire [DDR_BA_W-1:0] addr_bank_w;
+  wire [DDR_RA_W-1:0] addr_row_w;
+  wire [DDR_CA_W-1:0] addr_col_w;
+
+  generate
+    if (DDR_ADDR_ENCODE == "RBC") begin
+      // RBC: | row  | bank | col  |
+      assign addr_row_w  = mem_addr_i[DDR_RA_W+DDR_BA_W+DDR_CA_W-1:DDR_BA_W+DDR_CA_W];
+      assign addr_bank_w = mem_addr_i[DDR_BA_W+DDR_CA_W-1:DDR_CA_W];
+      assign addr_col_w  = mem_addr_i[DDR_CA_W-1:0];
+    end else begin // default
+      // BRC: | bank | row  | col  |
+      assign addr_bank_w = mem_addr_i[DDR_BA_W+DDR_RA_W+DDR_CA_W-1:DDR_RA_W+DDR_CA_W];
+      assign addr_row_w  = mem_addr_i[DDR_RA_W+DDR_CA_W-1:DDR_CA_W];
+      assign addr_col_w  = {mem_addr_i[DDR_CA_W-1:3], 3'd0};
+    end
+  endgenerate
 
   // Read & Write Request
   wire mem_req_rd_w =   mem_rd_i;
@@ -310,9 +347,9 @@ module mc_top #(
   
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i)
-      refresh_timer_q <= DDR_INIT_C;  // ddr init
+      refresh_timer_q <= INIT_TIME_TOTAL;  // ddr init
     else if (~dfi_init_complete_i)
-      refresh_timer_q <= DDR_INIT_C;  // hold when phy init
+      refresh_timer_q <= INIT_TIME_TOTAL;  // hold when phy init
     else if (refresh_timer_q == '0)
       refresh_timer_q <= DDR_REF_C;   // normal refresh
     else
@@ -358,15 +395,15 @@ module mc_top #(
           cmd_d   = CMD_MRS;
           bank_d  = 3'd2;     // MR2
           addr_d  = MRS_MR2;
-        end else if (refresh_timer_q == INIT_TIME_MRS - DDR_TMRD_C) begin
+        end else if (refresh_timer_q == INIT_TIME_MRS - nMRD) begin
           cmd_d   = CMD_MRS;
           bank_d  = 3'd3;     // MR3
           addr_d  = MRS_MR3;
-        end else if (refresh_timer_q == INIT_TIME_MRS - 2*DDR_TMRD_C) begin
+        end else if (refresh_timer_q == INIT_TIME_MRS - 2*nMRD) begin
           cmd_d   = CMD_MRS;
           bank_d  = 3'd1;     // MR1
           addr_d  = MRS_MR1;
-        end else if (refresh_timer_q == INIT_TIME_MRS - 3*DDR_TMRD_C) begin
+        end else if (refresh_timer_q == INIT_TIME_MRS - 3*nMRD) begin
           cmd_d   = CMD_MRS;
           bank_d  = 3'd0;     // MR0
           addr_d  = MRS_MR0;
@@ -401,22 +438,18 @@ module mc_top #(
         cmd_d   = CMD_READ;
         bank_d  = addr_bank_w;
         // RA = 15, CA = 10
-        addr_d[9:0]               = addr_col_w[9:0];
+        addr_d[9:0]               = addr_col_w;
         addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
-        addr_d[11]                = 1'b0; // CA[11]
-        addr_d[12]                = 1'b1; // BL = 8
-        addr_d[14:13]             = '0;// RFU
+        addr_d[14:11] = '0;
       end
       
       STATE_WRITE: begin
         cmd_d   = CMD_WRITE;
         bank_d  = addr_bank_w;
         // RA = 15, CA = 10
-        addr_d[9:0]               = addr_col_w[9:0];
+        addr_d[9:0]               = addr_col_w;
         addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
-        addr_d[11]                = 1'b0; // CA[11]
-        addr_d[12]                = 1'b1; // BL = 8
-        addr_d[14:13]             = '0;// RFU
+        addr_d[14:11] = '0;
       end
 
       STATE_REF: begin
@@ -470,11 +503,11 @@ module mc_top #(
     if (delay_q == '0) begin
       case (cmd_d)
       // case (cmd_q)
-        CMD_ACT:    delay_d = DDR_TRCD_C;
-        CMD_PRE:    delay_d = DDR_TRP_C;
+        CMD_ACT:    delay_d = nRCD;
+        CMD_PRE:    delay_d = nRP;
         CMD_READ:   delay_d = DDR_RW_NONSEQ_C;
         CMD_WRITE:  delay_d = DDR_RW_NONSEQ_C;
-        CMD_REF:    delay_d = DDR_TRFC_C;
+        CMD_REF:    delay_d = nRFC;
         default:    delay_d = '0;
       endcase
     end else begin
@@ -507,12 +540,12 @@ module mc_top #(
   end
 
   // read cmd -> trddata_en -> dfi_rddata_en * 4 cycles
-  wire dfi_rddata_en_w =  (cnt_dfi_rddly_q < (15 - TRDDATA_EN_C + 2)) &
-                          (cnt_dfi_rddly_q > (15 - TRDDATA_EN_C - 3));
+  wire dfi_rddata_en_w =  (cnt_dfi_rddly_q < (15 - nRDDATA_EN + 2)) &
+                          (cnt_dfi_rddly_q > (15 - nRDDATA_EN - 3));
 
   // sample dfi_rddata * 4 cycles
-  wire dfi_rddata_sample_w =  (cnt_dfi_rddly_q < (15 - TPHY_RDLAT_C - 4)) &
-                              (cnt_dfi_rddly_q > (15 - TPHY_RDLAT_C - 9));
+  wire dfi_rddata_sample_w =  (cnt_dfi_rddly_q < (15 - nPHY_RDLAT - 4)) &
+                              (cnt_dfi_rddly_q > (15 - nPHY_RDLAT - 9));
   
   // concat DFI_DATA_W * n/2 -> MEM_DATA_W
   //           [ 32 * 4 ]    ->  [ 128 ]  
@@ -521,7 +554,7 @@ module mc_top #(
     if (!rst_n_i) begin
       mem_rddata_q <= '0;
     end else if (dfi_rddata_sample_w) begin
-      mem_rddata_q <= {mem_rddata_q[MEM_DATA_W-DFI_DATA_W-1:0], dfi_rddata_i[DFI_DATA_W-1:0]};
+      mem_rddata_q <= {dfi_rddata_i[DFI_DATA_W-1:0], mem_rddata_q[MEM_DATA_W-1:DFI_DATA_W]};
     end else begin
       mem_rddata_q <= '0;
     end
@@ -568,8 +601,8 @@ module mc_top #(
   end
 
   // write cmd -> tphy_wrlat -> (dfi_wrdata_en & dfi_wrdata) * 4 cycles
-  wire dfi_wrdata_set_w = (cnt_dfi_wrdly_q < (15 - TPHY_WRLAT_C + 2)) &
-                          (cnt_dfi_wrdly_q > (15 - TPHY_WRLAT_C - 3));
+  wire dfi_wrdata_set_w = (cnt_dfi_wrdly_q < (15 - nPHY_WRLAT + 2)) &
+                          (cnt_dfi_wrdly_q > (15 - nPHY_WRLAT - 3));
   
   // dfi_wrdata_en * 4 cycles
   reg dfi_wrdata_en_q;

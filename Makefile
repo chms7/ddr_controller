@@ -65,6 +65,6 @@ wave:
 	nohup $(WAVE_TOOL) $(SIM_DIR)/wave.vcd > sim/wave_nohup &
 	
 clean:
-	rm -rf sim ucli.key
+	rm -rf sim ucli.key verdiLog
 	
 .PHONY: all sim wave clean

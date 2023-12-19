@@ -128,184 +128,6 @@ ddr3 u_ram (
 //-----------------------------------------------------------------
 // DDR PHY
 //-----------------------------------------------------------------
-  phy_top #
-    (
-     .TCQ                               (TCQ),
-     .REFCLK_FREQ                       (REFCLK_FREQ),
-     .nCS_PER_RANK                      (nCS_PER_RANK),
-     .CAL_WIDTH                         (CAL_WIDTH),
-     .CALIB_ROW_ADD                     (CALIB_ROW_ADD),
-     .CALIB_COL_ADD                     (CALIB_COL_ADD),
-     .CALIB_BA_ADD                      (CALIB_BA_ADD),
-     .CS_WIDTH                          (CS_WIDTH),
-     .nCK_PER_CLK                       (nCK_PER_CLK),
-     .CKE_WIDTH                         (CKE_WIDTH),
-     .DRAM_TYPE                         (DRAM_TYPE),
-     .SLOT_0_CONFIG                     (SLOT_0_CONFIG),
-     .SLOT_1_CONFIG                     (SLOT_1_CONFIG),
-     .CLK_PERIOD                        (CLK_PERIOD),
-     .BANK_WIDTH                        (BANK_WIDTH),
-     .CK_WIDTH                          (CK_WIDTH),
-     .COL_WIDTH                         (COL_WIDTH),
-     .DM_WIDTH                          (DM_WIDTH),
-     .DQ_CNT_WIDTH                      (DQ_CNT_WIDTH),
-     .DQ_WIDTH                          (DQ_WIDTH),
-     .DQS_CNT_WIDTH                     (DQS_CNT_WIDTH),
-     .DQS_WIDTH                         (DQS_WIDTH),
-     .DRAM_WIDTH                        (DRAM_WIDTH),
-     .ROW_WIDTH                         (ROW_WIDTH),
-     .RANK_WIDTH                        (RANK_WIDTH),
-     .AL                                (AL),
-     .BURST_MODE                        (BURST_MODE),
-     .BURST_TYPE                        (BURST_TYPE),
-     .nAL                               (nAL),
-     .nCL                               (nCL),
-     .nCWL                              (nCWL),
-     .tRFC                              (tRFC),
-     .OUTPUT_DRV                        (OUTPUT_DRV),
-     .REG_CTRL                          (REG_CTRL),
-     .RTT_NOM                           (RTT_NOM),
-     .RTT_WR                            (RTT_WR),
-     .WRLVL                             (WRLVL),
-     .PHASE_DETECT                      (PHASE_DETECT),
-     .IODELAY_HP_MODE                   (IODELAY_HP_MODE),
-     .IODELAY_GRP                       (IODELAY_GRP),
-     // Prevent the following simulation-related parameters from
-     // being overridden for synthesis - for synthesis only the
-     // default values of these parameters should be used
-     // synthesis translate_off
-     .SIM_BYPASS_INIT_CAL               (SIM_BYPASS_INIT_CAL),
-     // synthesis translate_on
-     .nDQS_COL0                         (nDQS_COL0),
-     .nDQS_COL1                         (nDQS_COL1),
-     .nDQS_COL2                         (nDQS_COL2),
-     .nDQS_COL3                         (nDQS_COL3),
-     .DQS_LOC_COL0                      (DQS_LOC_COL0),
-     .DQS_LOC_COL1                      (DQS_LOC_COL1),
-     .DQS_LOC_COL2                      (DQS_LOC_COL2),
-     .DQS_LOC_COL3                      (DQS_LOC_COL3),
-     .USE_DM_PORT                       (USE_DM_PORT),
-     .DEBUG_PORT                        (DEBUG_PORT)
-     )
-    phy_top0
-      (
-       /*AUTOINST*/
-       // Outputs
-       .ddr_ck_p                  (ddr_ck),
-       .ddr_ck_n                  (ddr_ck_n),
-       .ddr_addr                  (ddr_addr),
-       .ddr_ba                    (ddr_ba),
-       .ddr_ras_n                 (ddr_ras_n),
-       .ddr_cas_n                 (ddr_cas_n),
-       .ddr_we_n                  (ddr_we_n),
-       .ddr_cs_n                  (ddr_cs_n),
-       .ddr_cke                   (ddr_cke),
-       .ddr_odt                   (ddr_odt),
-       .ddr_reset_n               (ddr_reset_n),
-       .ddr_parity                (ddr_parity),
-       .ddr_dm                    (ddr_dm),
-       .ddr_dqs_p                 (ddr_dqs),
-       .ddr_dqs_n                 (ddr_dqs_n),
-       .ddr_dq                    (ddr_dq),
-    //    .pd_PSEN                   (pd_PSEN),
-    //    .pd_PSINCDEC               (pd_PSINCDEC),
-    //    .dbg_wrlvl_start           (dbg_wrlvl_start),
-    //    .dbg_wrlvl_done            (dbg_wrlvl_done),
-    //    .dbg_wrlvl_err             (dbg_wrlvl_err),       
-    //    .dbg_wl_dqs_inverted       (dbg_wl_dqs_inverted),
-    //    .dbg_wr_calib_clk_delay    (dbg_wr_calib_clk_delay),
-    //    .dbg_wl_odelay_dqs_tap_cnt (dbg_wl_odelay_dqs_tap_cnt),
-    //    .dbg_wl_odelay_dq_tap_cnt  (dbg_wl_odelay_dq_tap_cnt),
-    //    .dbg_tap_cnt_during_wrlvl  (dbg_tap_cnt_during_wrlvl),
-    //    .dbg_wl_edge_detect_valid  (dbg_wl_edge_detect_valid),
-    //    .dbg_rd_data_edge_detect   (dbg_rd_data_edge_detect),
-    //    .dbg_rdlvl_start           (dbg_rdlvl_start),
-    //    .dbg_rdlvl_done            (dbg_rdlvl_done),
-    //    .dbg_rdlvl_err             (dbg_rdlvl_err),
-    //    .dbg_cpt_first_edge_cnt    (dbg_cpt_first_edge_cnt),
-    //    .dbg_cpt_second_edge_cnt   (dbg_cpt_second_edge_cnt),
-    //    .dbg_rd_bitslip_cnt        (dbg_rd_bitslip_cnt),
-    //    .dbg_rd_clkdly_cnt         (dbg_rd_clkdly_cnt),
-    //    .dbg_rd_active_dly         (dbg_rd_active_dly),
-    //    .dbg_rd_data               (dbg_rddata),
-    //    .dbg_cpt_tap_cnt           (dbg_cpt_tap_cnt),
-    //    .dbg_rsync_tap_cnt         (dbg_rsync_tap_cnt),
-    //    .dbg_dqs_tap_cnt           (dbg_dqs_tap_cnt),
-    //    .dbg_dq_tap_cnt            (dbg_dq_tap_cnt),
-    //    .dbg_phy_pd                (dbg_phy_pd),
-    //    .dbg_phy_read              (dbg_phy_read),
-    //    .dbg_phy_rdlvl             (dbg_phy_rdlvl),       
-    //    .dbg_phy_top               (dbg_phy_top),       
-       // Inouts
-        // Inputs
-       .clk_mem                   (clk_mem),
-       .clk                       (clk),
-       .clk_rd_base               (clk_rd_base),
-       .rst                       (rst),
-
-       .slot_0_present            (slot_0_present),
-       .slot_1_present            (slot_1_present),
-
-       .dfi_address0              (dfi_address0),
-       .dfi_address1              (dfi_address1),
-       .dfi_bank0                 (dfi_bank0),
-       .dfi_bank1                 (dfi_bank1),
-
-       .dfi_cs_n0                 (dfi_cs_n0),
-       .dfi_cs_n1                 (dfi_cs_n1),
-       .dfi_ras_n0                (dfi_ras_n0),
-       .dfi_ras_n1                (dfi_ras_n1),
-       .dfi_cas_n0                (dfi_cas_n0),
-       .dfi_cas_n1                (dfi_cas_n1),
-       .dfi_we_n0                 (dfi_we_n0),
-       .dfi_we_n1                 (dfi_we_n1),
-       .dfi_cke0                  ({CKE_WIDTH{1'b1}}),
-       .dfi_cke1                  ({CKE_WIDTH{1'b1}}),
-       .dfi_reset_n               (dfi_reset_n),
-       .dfi_odt0                  (dfi_odt0),
-       .dfi_odt1                  (dfi_odt1),
-
-       .dfi_wrdata_en             (dfi_wrdata_en[0]),
-       .dfi_wrdata_mask           (dfi_wrdata_mask),
-       .dfi_wrdata                (dfi_wrdata),
-
-       .dfi_rddata_en             (dfi_rddata_en[0]),
-       .dfi_rddata_valid          (dfi_rddata_valid),
-       .dfi_rddata                (dfi_rddata),
-
-       .dfi_init_complete         (dfi_init_complete),
-       .dfi_dram_clk_disable      (dfi_dram_clk_disable),
-
-       .io_config_strobe          (io_config_strobe),
-       .io_config                 (io_config),
-    //    .pd_PSDONE                 (pd_PSDONE),
-    //    .dbg_wr_dqs_tap_set        (dbg_wr_dqs_tap_set),
-    //    .dbg_wr_dq_tap_set         (dbg_wr_dq_tap_set),
-    //    .dbg_wr_tap_set_en         (dbg_wr_tap_set_en),         
-    //    .dbg_idel_up_all           (dbg_idel_up_all),       
-    //    .dbg_idel_down_all         (dbg_idel_down_all),
-    //    .dbg_idel_up_cpt           (dbg_idel_up_cpt),
-    //    .dbg_idel_down_cpt         (dbg_idel_down_cpt),
-    //    .dbg_idel_up_rsync         (dbg_idel_up_rsync),
-    //    .dbg_idel_down_rsync       (dbg_idel_down_rsync),
-    //    .dbg_sel_idel_cpt          (dbg_sel_idel_cpt),
-    //    .dbg_sel_all_idel_cpt      (dbg_sel_all_idel_cpt),
-    //    .dbg_sel_idel_rsync        (dbg_sel_idel_rsync),
-    //    .dbg_sel_all_idel_rsync    (dbg_sel_all_idel_rsync),
-    //    .dbg_pd_off                (dbg_pd_off),
-    //    .dbg_pd_maintain_off       (dbg_pd_maintain_off),
-    //    .dbg_pd_maintain_0_only    (dbg_pd_maintain_0_only),
-    //    .dbg_pd_inc_cpt            (dbg_pd_inc_cpt),
-    //    .dbg_pd_dec_cpt            (dbg_pd_dec_cpt),
-    //    .dbg_pd_inc_dqs            (dbg_pd_inc_dqs),
-    //    .dbg_pd_dec_dqs            (dbg_pd_dec_dqs), 
-    //    .dbg_pd_disab_hyst         (dbg_pd_disab_hyst),
-    //    .dbg_pd_disab_hyst_0       (dbg_pd_disab_hyst_0),
-    //    .dbg_pd_msb_sel            (dbg_pd_msb_sel),
-    //    .dbg_pd_byte_sel           (dbg_pd_byte_sel),
-    //    .dbg_inc_rd_fps            (dbg_inc_rd_fps),
-    //    .dbg_dec_rd_fps            (dbg_dec_rd_fps)
-       );
 ddr3_dfi_phy #(
   .DQS_TAP_DELAY_INIT ( 27               ),
   .DQ_TAP_DELAY_INIT  ( 0                ),
@@ -455,7 +277,7 @@ mc_top u_mc_top (
 // );
 
 //-----------------------------------------------------------------
-// ram_read: Perform read transfer (128-bit)
+// mem_read: Perform read transfer (128-bit)
 //-----------------------------------------------------------------
 task mem_read;
     input  [31:0]  addr;
@@ -517,140 +339,48 @@ begin
     dfi_init_complete = 1'b0;
     #10000
         dfi_init_complete = 1'b1;
-    mem_rd     = 1'b0;
+    mem_wr     = '0;
+    mem_rd     = '0;
+    mem_addr   = '0;
+    mem_wrdata = '0;
 
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)},   128'hAAAA_BBBB_CCCC_DDDD_EEEE_FFFF_1234_4321, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d2)},   128'h1111_2222_3333_4444_5555_6666_7777_8888, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d999)}, 128'h1111_2222_3333_4444_5555_6666_7777_8888, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d1),    DDR_CA_W'('d999)}, 128'h1111_2222_3333_4444_5555_6666_7777_8888, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d999)}, 128'hFFFF_1111_FFFF_1111_FFFF_1111_FFFF_1111, 16'hFFFF);
+    // wirte
+    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
+    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d999)}, 128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
+
+    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d1),    DDR_CA_W'('d123)}, 128'h1111_2222_3333_4444_5555_6666_7777_8888, 16'hFFFF);
+
+    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d2)},   128'h2222_3333_4444_5555_6666_7777_8888_9999, 16'hFFFF);
+    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d999)}, 128'h2222_3333_4444_5555_6666_7777_8888_9999, 16'hFFFF);
+
     mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d1234), DDR_CA_W'('d999)}, 128'hFFFF_1111_FFFF_1111_FFFF_1111_FFFF_1111, 16'hFFFF);
+
+    // read
+    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)}, data);
+    if (data != 128'h0000_1111_2222_3333_4444_5555_6666_7777)
+        $display("ERROR: BA0\tRA0\tCA0\tMismatch!");
+
+    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d999)}, data);
+    if (data != 128'h0000_1111_2222_3333_4444_5555_6666_7777)
+        $display("ERROR: BA0\tRA0\tCA999\tMismatch!");
+
+    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d1),    DDR_CA_W'('d123)}, data);
+    if (data != 128'h1111_2222_3333_4444_5555_6666_7777_8888)
+        $display("ERROR: BA0\tRA1\tCA123\tMismatch!");
+
     mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d2)}, data);
+    if (data != 128'h2222_3333_4444_5555_6666_7777_8888_9999)
+        $display("ERROR: BA2\tRA2\tCA2\tMismatch!");
+
+    mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d999)}, data);
+    if (data != 128'h2222_3333_4444_5555_6666_7777_8888_9999)
+        $display("ERROR: BA2\tRA2\tCA999\tMismatch!");
+
     mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d1234), DDR_CA_W'('d999)}, data);
-    // mem_read(16000, data);
+    if (data != 128'hFFFF_1111_FFFF_1111_FFFF_1111_FFFF_1111)
+        $display("ERROR: BA2\tRA1234\tCA999\tMismatch!");
 
-
-
-    // mem_addr   = 32'h0000_0000;
-    // mem_wr     = 16'd1;
-    // mem_wrdata = 128'hAAAA_BBBB_CCCC_DDDD_EEEE_FFFF_0000_1111;
-    // @(posedge clk);
-
-    // while (!mem_accept)
-    // begin
-    //     @(posedge clk);
-    // end
-    // mem_wr = 16'b0;
-
-    // while (!mem_ack)
-    // begin
-    //     @(posedge clk);
-    // end
-    
-    // mem_addr   = 32'h0000_0001;
-    // mem_rd     = 1'b0;
-    // mem_wr     = 16'd1;
-    // mem_wrdata = 128'hFFFF_EEEE_DDDD_CCCC_BBBB_AAAA_9999_8888;
-    // @(posedge clk);
-
-    // while (!mem_accept)
-    // begin
-    //     @(posedge clk);
-    // end
-    // mem_wr = 16'b0;
-
-    // while (!mem_ack)
-    // begin
-    //     @(posedge clk);
-    // end
-
-
-
-    // dfi_cs_n    = '1;
-    // dfi_ras_n   = '1;
-    // dfi_cas_n   = '1;
-    // dfi_we_n    = '1;
-
-    // dfi_reset_n = '0;
-    // dfi_cke     = '0;
-    // dfi_odt     = '1;
-
-    // dfi_address = '0;
-    // dfi_bank    = '0;
-    // dfi_wrdata      = '0;
-    // dfi_wrdata_en   = '0;
-    // dfi_wrdata_mask = '0;
-    // dfi_rddata_en   = '0;
-    
-    // #1000 dfi_reset_n = '1;
-    // #1000 dfi_cke     = '1;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_LOAD_MODE;
-    //     dfi_bank    = 3'd2;
-    //     dfi_address = MR2_REG;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_LOAD_MODE;
-    //     dfi_bank    = 3'd3;
-    //     dfi_address = MR3_REG;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_LOAD_MODE;
-    //     dfi_bank    = 3'd1;
-    //     dfi_address = MR1_REG;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_LOAD_MODE;
-    //     dfi_bank    = 3'd0;
-    //     dfi_address = MR0_REG;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_ZQCL;
-    //     // dfi_bank    = 3'd0;
-    //     dfi_address[10] = 1'b1;
-    // #1000000
-    //     {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_PRECHARGE;
-    //     // dfi_bank    = 3'd0;
-    //     dfi_address[10] = 1'b1;
-    
-    // @(posedge clk);
-    // dfi_address = 14'd1;
-    // dfi_bank    = 3'd0;
-    // {dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n} = CMD_WRITE;
-    // dfi_wrdata      = 32'hABCDEFFF;
-    // dfi_wrdata_en   = 1'b1;
-    // dfi_wrdata_mask = '0;
-
-
-
-
-    // ram_wr         = 0;
-    // ram_rd         = 0;
-    // ram_addr       = 0;
-    // mem_write_data = 0;
-    // ram_req_id     = 0;
-
-    // @(posedge clk);
-    
-    // mem_write(0,  128'hffeeddccbbaa99887766554433221100, 16'hFFFF);
-    // mem_write(16, 128'hbeaffeadd0d0600d5555AAAA00000000, 16'hFFFF);
-    // mem_write(32, 128'hffffffff111111112222222233333333, 16'hFFFF);
-
-    // ram_read(0, data);
-    // if (data != 128'hffeeddccbbaa99887766554433221100)
-    // begin
-    //     $fatal(1, "ERROR: Data mismatch!");
-    // end
-
-    // ram_read(16, data);
-    // if (data != 128'hbeaffeadd0d0600d5555AAAA00000000)
-    // begin
-    //     $fatal(1, "ERROR: Data mismatch!");
-    // end
-
-    // ram_read(32, data);
-    // if (data != 128'hffffffff111111112222222233333333)
-    // begin
-    //     $fatal(1, "ERROR: Data mismatch!");
-    // end
-    
-    // #100000
+    #1000
     @(posedge clk);   
     $finish;
 
