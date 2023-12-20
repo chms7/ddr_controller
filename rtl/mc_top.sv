@@ -87,6 +87,7 @@ module mc_top #(
   localparam CMD_READ     = 4'b0101; // 5
   localparam CMD_ZQCL     = 4'b0110; // 6
   localparam CMD_NOP      = 4'b0111; // 7
+  localparam CMD_INIT     = 4'b1111; // 15
 
   // Mode Register Configuration
   localparam MRS_MR0_BL     = 2'b00;   // BL = 8
@@ -186,7 +187,7 @@ module mc_top #(
       // RBC: | row  | bank | col  |
       assign addr_row_w  = mem_addr_i[DDR_RA_W+DDR_BA_W+DDR_CA_W-1:DDR_BA_W+DDR_CA_W];
       assign addr_bank_w = mem_addr_i[DDR_BA_W+DDR_CA_W-1:DDR_CA_W];
-      assign addr_col_w  = mem_addr_i[DDR_CA_W-1:0];
+      assign addr_col_w  = {mem_addr_i[DDR_CA_W-1:3], 3'd0};
     end else begin // default
       // BRC: | bank | row  | col  |
       assign addr_bank_w = mem_addr_i[DDR_BA_W+DDR_RA_W+DDR_CA_W-1:DDR_RA_W+DDR_CA_W];
@@ -199,7 +200,6 @@ module mc_top #(
   wire mem_req_rd_w =   mem_rd_i;
   wire mem_req_wr_w = | mem_wr_i;
   wire mem_req_w    = mem_req_rd_w | mem_req_wr_w;
-  
   
   // ---------------------------------------------------------------------------
   // FSM State
@@ -247,16 +247,16 @@ module mc_top #(
             // PM (Page Miss): PRE -> ACT -> READ/WRITE
               next_state_d   = STATE_PRE;
             if (mem_req_rd_w)
-              target_state_d   = STATE_READ;
+              target_state_d = STATE_READ;
             else
-              target_state_d   = STATE_WRITE;
+              target_state_d = STATE_WRITE;
           end else begin
             // PH (Page Hit): ACT -> READ/WRITE
               next_state_d   = STATE_ACT;
             if (mem_req_rd_w)
-              target_state_d   = STATE_READ;
+              target_state_d = STATE_READ;
             else
-              target_state_d   = STATE_WRITE;
+              target_state_d = STATE_WRITE;
           end
         // None
         end else begin
@@ -289,6 +289,7 @@ module mc_top #(
       STATE_REF: begin
         next_state_d = STATE_IDLE;
       end
+
       default: ;
     endcase
   end
@@ -301,9 +302,6 @@ module mc_top #(
       // update state only when cmd accepted
       state_q         <= next_state_d;
       target_state_q  <= target_state_d;
-    end else begin
-      state_q         <= state_q;
-      target_state_q  <= target_state_q;
     end
   end
   
@@ -351,7 +349,7 @@ module mc_top #(
     else if (~dfi_init_complete_i)
       refresh_timer_q <= INIT_TIME_TOTAL;  // hold when phy init
     else if (refresh_timer_q == '0)
-      refresh_timer_q <= DDR_REF_C;   // normal refresh
+      refresh_timer_q <= DDR_REF_C;        // normal refresh
     else
       refresh_timer_q <= refresh_timer_q - 1;
   end
@@ -424,7 +422,7 @@ module mc_top #(
         end else begin
           // precharge specific bank
           addr_d[ADDR_BIT_ALLBANK] = 1'b0;
-          bank_d     = addr_bank_w;
+          bank_d                   = addr_bank_w;
         end
       end
       
@@ -438,18 +436,18 @@ module mc_top #(
         cmd_d   = CMD_READ;
         bank_d  = addr_bank_w;
         // RA = 15, CA = 10
-        addr_d[9:0]               = addr_col_w;
-        addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
+        addr_d[9:0]   = addr_col_w;
         addr_d[14:11] = '0;
+        addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
       end
       
       STATE_WRITE: begin
         cmd_d   = CMD_WRITE;
         bank_d  = addr_bank_w;
         // RA = 15, CA = 10
-        addr_d[9:0]               = addr_col_w;
-        addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
+        addr_d[9:0]   = addr_col_w;
         addr_d[14:11] = '0;
+        addr_d[ADDR_BIT_AUTOPRE]  = 1'b0;  // disable auto-precharge
       end
 
       STATE_REF: begin
@@ -467,11 +465,11 @@ module mc_top #(
       bank_q  <= '0;
       addr_q  <= '0;
     end else if (~dfi_init_complete_i) begin
-      cmd_q   <= 4'b1111; // phy init
+      cmd_q   <= CMD_INIT; // phy init
       bank_q  <= '0;
       addr_q  <= '0;
     end else if (cmd_accept_w) begin
-      cmd_q   <= cmd_d;   // send command
+      cmd_q   <= cmd_d;    // send command
       bank_q  <= bank_d;
       addr_q  <= addr_d;
     end else begin
@@ -540,8 +538,8 @@ module mc_top #(
   end
 
   // read cmd -> trddata_en -> dfi_rddata_en * 4 cycles
-  wire dfi_rddata_en_w =  (cnt_dfi_rddly_q < (15 - nRDDATA_EN + 2)) &
-                          (cnt_dfi_rddly_q > (15 - nRDDATA_EN - 3));
+  wire dfi_rddata_en_w     =  (cnt_dfi_rddly_q < (15 - nRDDATA_EN + 2)) &
+                              (cnt_dfi_rddly_q > (15 - nRDDATA_EN - 3));
 
   // sample dfi_rddata * 4 cycles
   wire dfi_rddata_sample_w =  (cnt_dfi_rddly_q < (15 - nPHY_RDLAT - 4)) &
@@ -638,7 +636,6 @@ module mc_top #(
   
   // write acknowledge
   wire wr_ack_w = (state_q == STATE_WRITE) & cmd_accept_w;
-
 
   // ---------------------------------------------------------------------------
   // Interface

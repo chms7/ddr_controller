@@ -11,16 +11,16 @@ module mc_fifo_sync #(
   parameter   DEPTH = 4,
   localparam  ADDR_W = $clog2(DEPTH)
 ) (
-  input  wire             clk_i,
-  input  wire             rst_n_i,
+  input  logic             clk_i,
+  input  logic             rst_n_i,
 
-  input  wire             push_i,
-  input  wire [WIDTH-1:0] push_data_i,
-  output wire             push_rdy_o,
+  input  logic             push_i,
+  input  logic [WIDTH-1:0] push_data_i,
+  output logic             push_rdy_o,
 
-  input  wire             pop_i,
-  output wire [WIDTH-1:0] pop_data_o,
-  output wire             pop_vld_o
+  input  logic             pop_i,
+  output logic [WIDTH-1:0] pop_data_o,
+  output logic             pop_vld_o
 );
   reg [ADDR_W:0] rd_ptr, wr_ptr;
 
@@ -33,13 +33,16 @@ module mc_fifo_sync #(
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i) begin
       wr_ptr <= '0;
+    end else if (push_i & ~fifo_full) begin
+      wr_ptr <= wr_ptr + 1;
+    end
+  end
+
+  always @(posedge clk_i or negedge rst_n_i) begin
+    if (!rst_n_i) begin
       rd_ptr <= '0;
-    end else if (~fifo_full) begin
-      if (push_i) wr_ptr <= wr_ptr + 1;
-      if (pop_i)  rd_ptr <= rd_ptr + 1;
-    end else begin
-      wr_ptr <= wr_ptr;
-      rd_ptr <= rd_ptr;
+    end else if (pop_i  & ~fifo_empty) begin
+      rd_ptr <= rd_ptr + 1;
     end
   end
   
