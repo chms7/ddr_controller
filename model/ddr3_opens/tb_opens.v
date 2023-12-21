@@ -1,19 +1,27 @@
 `timescale 1 ns / 100ps
 
-module tb_xilinx ;
+module tb_opens;
 
-`include "simulation.vh"
+`include "../model/ddr3_opens/simulation.vh"
 
 //-----------------------------------------------------------------
 // Clock / Reset
 //-----------------------------------------------------------------
-`CLOCK_GEN(osc, 10)    // 100MHz
-`RESET_GEN(rst, 1000)  // delay 1000ns
+parameter PERIOD  = 10;
+
+logic osc = 0 ;
+logic rst = 1 ;
+
+initial forever #(PERIOD/2) osc = ~osc; // 100MHz
+initial         #(1000)     rst = 0;
 
 //-----------------------------------------------------------------
-// Misc
+// Dump Wave
 //-----------------------------------------------------------------
-`TB_VCD(tb_xilinx, "wave.vcd")
+initial begin
+  $dumpfile("../sim/wave.vcd");
+  $dumpvars(0, tb_mc);
+end
 
 //-----------------------------------------------------------------
 // PLL

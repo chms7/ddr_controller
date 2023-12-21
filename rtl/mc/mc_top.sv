@@ -5,31 +5,9 @@
  * @Date:   2023-10-31
  * @Description: Top module of ddr controller
  */
+`include "../config/mc_defines.svh"
 
-module mc_top #(
-  // DDR
-  parameter FREQ_CORE_MHZ     = 100,
-  parameter FREQ_IO_MHZ       = 4*FREQ_CORE_MHZ, // 8n-prefetch
-  parameter FREQ_PHY_MHZ      = 4*FREQ_CORE_MHZ, // 8n-prefetch
-  parameter FREQ_RATIO_PHY2MC = 1,      // 1:1
-  parameter FREQ_MC_MHZ       = FREQ_PHY_MHZ/FREQ_RATIO_PHY2MC,
-  parameter DDR_FREQ_MHZ      = 100,    // 100 MHz
-  parameter DDR_DQ_W          = 16,     // DQ width
-  parameter DDR_BA_W          = 3,      // Bank address
-  parameter DDR_RA_W          = 15,     // Row  address
-  parameter DDR_CA_W          = 10,     // Col  address
-  parameter DDR_ADDR_W        = DDR_RA_W,
-  parameter DDR_ADDR_ENCODE   = "BRC",  // BRC: | bank | row  | col  |
-                                        // RBC: | row  | bank | col  |
-  parameter DDR_BL            = 8,      // Burst length
-  parameter DDR_BT            = "SEQ",  // Burst type
-  // DFI
-  parameter DFI_DATA_W        = 32,
-  // MEM
-  parameter MEM_ADDR_W        = 32,
-  parameter MEM_DATA_W        = DDR_DQ_W*DDR_BL,
-  parameter MEM_MASK_W        = MEM_DATA_W/8
-) (
+module mc_top (
   input                     clk_i,
   input                     rst_n_i,
 
@@ -66,114 +44,6 @@ module mc_top #(
   input                     dfi_init_complete_i,
   output                    dfi_dram_clk_disable_o
 );
-  // ---------------------------------------------------------------------------
-  // Parameters & Defines
-  // ---------------------------------------------------------------------------
-  // FSM Encode
-  localparam STATE_INIT   = 4'd0;
-  localparam STATE_REF    = 4'd1;
-  localparam STATE_PRE    = 4'd2;
-  localparam STATE_ACT    = 4'd3;
-  localparam STATE_WRITE  = 4'd4;
-  localparam STATE_READ   = 4'd5;
-  localparam STATE_IDLE   = 4'd7;
-
-  // Command Encode
-  localparam CMD_MRS      = 4'b0000; // 0
-  localparam CMD_REF      = 4'b0001; // 1
-  localparam CMD_PRE      = 4'b0010; // 2
-  localparam CMD_ACT      = 4'b0011; // 3
-  localparam CMD_WRITE    = 4'b0100; // 4
-  localparam CMD_READ     = 4'b0101; // 5
-  localparam CMD_ZQCL     = 4'b0110; // 6
-  localparam CMD_NOP      = 4'b0111; // 7
-  localparam CMD_INIT     = 4'b1111; // 15
-
-  // Mode Register Configuration
-  localparam MRS_MR0_BL     = 2'b00;   // BL = 8
-  localparam MRS_MR0_BT     = 1'b0;    // Sequential
-  localparam MRS_MR0_CL     = 4'b0100; // CL = 6 CK
-  localparam MRS_MR0_DLL    = 1'b1;    // DLL Reset: yes
-  localparam MRS_MR0_WR     = 3'b000;  // WR = 16 CK
-  localparam MRS_MR0_PD     = 1'b0;    // Precharge PD: DLL off
-  localparam MRS_MR0  = {2'd0, MRS_MR0_PD, MRS_MR0_WR, MRS_MR0_DLL, 1'b0,
-                         MRS_MR0_CL[3:1], MRS_MR0_BT, MRS_MR0_CL[0], MRS_MR0_BL};
-
-  localparam MRS_MR1_DLL    = 1'b1;    // DLL: disable
-  localparam MRS_MR1_ODS    = 2'b00;   // ODS: RZQ/6 (40ohm)
-  localparam MRS_MR1_RTT    = 3'b000;  // RTT,norm: disable
-  localparam MRS_MR1_AL     = 2'b00;   // AL = 0 CK
-  localparam MRS_MR1_WL     = 1'b0;    // Write Leveling: disable
-  localparam MRS_MR1_TDQS   = 1'b0;    // TDQS: disable
-  localparam MRS_MR1_Qoff   = 1'b0;    // Q off
-  localparam MRS_MR1  = {2'd0, MRS_MR1_Qoff, MRS_MR1_TDQS, 1'b0, MRS_MR1_RTT[2], 1'b0,
-                         MRS_MR1_WL, MRS_MR1_RTT[1], MRS_MR1_ODS[1], MRS_MR1_AL,
-                         MRS_MR1_RTT[0], MRS_MR1_ODS[0], MRS_MR1_DLL};
-
-  localparam MRS_MR2_CWL    = 3'b001;  // CWL = 6 CK
-  localparam MRS_MR2_ASR    = 1'b0;    // ASR: disabled
-  localparam MRS_MR2_SRT    = 1'b0;    // SRT: normal
-  localparam MRS_MR2_RTTWR  = 2'b00;   // RTT(WR): disable
-  localparam MRS_MR2 = {4'd0, MRS_MR2_RTTWR, 1'd0, MRS_MR2_SRT, MRS_MR2_ASR, MRS_MR2_CWL, 3'd0};
-
-  localparam MRS_MR3_MPR_RF = 2'b00;   // MPR READ Function: Predefined pattern
-  localparam MRS_MR3_MPR    = 1'b0;    // MPR Enable: Normal DRAM operations
-  localparam MRS_MR3 = {12'd0, MRS_MR3_MPR, MRS_MR3_MPR_RF};
-
-  // DDR Timing
-  localparam tCK_ns  = 1000 / DDR_FREQ_MHZ;
-
-  localparam nAL       = 0;
-  localparam nCWL      = 6;
-  localparam nWL       = nAL + nCWL;
-  localparam nCL       = 6;
-  localparam nRL       = nAL + nCL;
-  
-  localparam nXPR     = 5;            // 5 cycles
-  localparam nMRD     = 4;            // 4 cycles
-  localparam nMOD     = 12;           // 12 cycles
-  localparam nZQINIT  = 512;          // 512 cycles
-  localparam nRP      = 15  / tCK_ns; // 15 ns
-  localparam nRFC     = 260 / tCK_ns; // 260 ns
-  localparam nRCD     = 15  / tCK_ns; // 15 ns
-  localparam nWTR     = 4;            // 4 cycles
-  localparam nCCD     = 4;            // 4 cycles
-  // localparam nRP    = (15 + (tCK_ns-1)) / tCK_ns;
-  // localparam nRFC   = (260 + (tCK_ns-1)) / tCK_ns;
-  // localparam nRCD   = (15 + (tCK_ns-1)) / tCK_ns;
-  // localparam nWTR   = 5 + 1;
-
-  // Standard R/W -> W->R (non-sequential)
-  localparam DDR_WTR_C = nWL + DDR_BL + nWTR;
-  localparam DDR_WTW_C = nCCD;
-  localparam DDR_RW_NONSEQ_C = nWL + DDR_BL + nWTR;
-  localparam DDR_RW_SEQ_C    = DDR_RW_NONSEQ_C + 1 - DDR_BL;
-  // localparam DDR_RW_SEQ_C    = DDR_RW_NONSEQ_C + 1 - DDR_BL;
-
-  // DDR Init: 700us + tXPR + (15?) + 3*tMRD + tMOD + tZQinit + tRP
-  localparam INIT_TIME_TOTAL     = 700000/tCK_ns + nXPR + 15 + 3*nMRD
-                                  + nMOD + nZQINIT + nRP;
-  localparam INIT_TIME_RST      = INIT_TIME_TOTAL - 200000 / tCK_ns;  // 200us
-  localparam INIT_TIME_CKE      = INIT_TIME_RST - 500000 / tCK_ns;   // 500us
-  localparam INIT_TIME_MRS      = INIT_TIME_CKE - nXPR - 15; // ?
-  localparam INIT_TIME_ZQCL     = INIT_TIME_MRS - 3*nMRD - nMOD;
-  localparam INIT_TIME_PRE      = INIT_TIME_ZQCL - nZQINIT;
-
-  // PHY Timing
-  localparam nPHY_WRLAT = 3;
-  localparam nRDDATA_EN = 4;
-  localparam nPHY_RDLAT = 4;
-  // localparam nPHY_WRLAT        = nWL-1;
-  // localparam nPHY_RDLAT        = nRL-1;
-  
-  // Refresh Timer
-  localparam DDR_REF_C  = (64000000/(2**DDR_RA_W)) / tCK_ns; // refresh per 64ms/RA
-  // localparam DDR_REF_C = (64000*DDR_FREQ_MHZ) / 8192;
-  localparam REF_TIMER_W    = 17;
-  
-  localparam ADDR_BIT_ALLBANK = 10;
-  localparam ADDR_BIT_AUTOPRE = 10;
-
   // ---------------------------------------------------------------------------
   // Input Process
   // ---------------------------------------------------------------------------
@@ -489,6 +359,20 @@ module mc_top #(
     end
   end
   
+  // last command
+  reg [3:0] cmd_last_q;
+
+  always @(posedge clk_i or negedge rst_n_i) begin
+    if (!rst_n_i)
+      cmd_last_q <= CMD_NOP;
+    else if (cmd_q != CMD_NOP)
+      cmd_last_q <= cmd_q;
+  end
+
+  // back-to-back read/write
+  wire cmd_read_b2b  = (cmd_last_q == CMD_READ)  & (cmd_d == CMD_READ) ;
+  wire cmd_write_b2b = (cmd_last_q == CMD_WRITE) & (cmd_d == CMD_WRITE);
+  
   // ---------------------------------------------------------------------------
   // Command Delay
   // ---------------------------------------------------------------------------
@@ -503,13 +387,19 @@ module mc_top #(
       // case (cmd_q)
         CMD_ACT:    delay_d = nRCD;
         CMD_PRE:    delay_d = nRP;
-        CMD_READ:   delay_d = DDR_RW_NONSEQ_C;
-        CMD_WRITE:  delay_d = DDR_RW_NONSEQ_C;
+        CMD_READ:   delay_d = cmd_read_b2b  ? DDR_RW_SEQ_C
+                                            : DDR_RW_NONSEQ_C;
+        CMD_WRITE:  delay_d = cmd_write_b2b ? DDR_RW_SEQ_C
+                                            : DDR_RW_NONSEQ_C;
         CMD_REF:    delay_d = nRFC;
         default:    delay_d = '0;
       endcase
     end else begin
       delay_d = delay_q - 1;
+      if ((cmd_last_q == CMD_READ) & (cmd_d == CMD_NOP) & (next_state_d != STATE_READ))
+        delay_d = DDR_RW_NONSEQ_C - 1;
+      if ((cmd_last_q == CMD_WRITE) & (cmd_d == CMD_NOP) & (next_state_d != STATE_WRITE))
+        delay_d = DDR_RW_NONSEQ_C - 1;
     end
   end
   
@@ -519,7 +409,9 @@ module mc_top #(
     else
       delay_q <= delay_d;
   end
-  assign cmd_accept_w = (delay_q == '0) || (cmd_d == CMD_NOP);
+
+  // command accepted
+  assign cmd_accept_w = (delay_q == '0) | (cmd_d == CMD_NOP);
 
   // ---------------------------------------------------------------------------
   // Read Operation
