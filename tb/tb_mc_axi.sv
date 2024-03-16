@@ -1,6 +1,6 @@
 `timescale 1 ns / 100ps
 
-module tb_mc;
+module tb_mc_axi;
 
 `include "../rtl/config/mc_defines.svh"
 
@@ -20,7 +20,7 @@ initial         #(1000)     rst = 0;
 //-----------------------------------------------------------------
 initial begin
   $dumpfile("../sim/wave.vcd");
-  $dumpvars(0, tb_mc);
+  $dumpvars(0, tb_mc_axi);
 end
 
 //-----------------------------------------------------------------
@@ -31,16 +31,14 @@ wire clk_ddr;
 wire clk_ddr_dqs;
 wire clk_ref;
 
-artix7_pll
-u_pll
-(
-    .clkref_i(osc)
+artix7_pll u_pll (
+  .clkref_i(osc)
 
-    // Outputs
-    ,.clkout0_o(clk)         // 100
-    ,.clkout1_o(clk_ddr)     // 400
-    ,.clkout2_o(clk_ref)     // 200
-    ,.clkout3_o(clk_ddr_dqs) // 400 (phase 90)
+  // Outputs
+  ,.clkout0_o(clk)         // 100
+  ,.clkout1_o(clk_ddr)     // 400
+  ,.clkout2_o(clk_ref)     // 200
+  ,.clkout3_o(clk_ddr_dqs) // 400 (phase 90)
 );
 
 //-----------------------------------------------------------------
@@ -162,27 +160,87 @@ ddr3_dfi_phy #(
 //-----------------------------------------------------------------
 // DDR Controller
 //-----------------------------------------------------------------
-reg  [ 15:0]  mem_wr;
-reg           mem_rd;
-reg  [ 31:0]  mem_addr;
-reg  [127:0]  mem_wrdata;
-reg  [ 15:0]  mem_req_id;
-wire          mem_accept;
-wire          mem_ack;
-wire          mem_error;
-wire [ 15:0]  mem_resp_id;
-wire [127:0]  mem_rddata;
+parameter AXI_ID_WIDTH   = 4;
+parameter AXI_ADDR_WIDTH = 32;
+parameter AXI_DATA_WIDTH = 32;
+parameter REQ_BUF_DEPTH  = 4;
 
-mc_top u_mc_top (
-    .clk_i                   ( clk                  ),
-    .rst_n_i                 ( ~rst                 ),
-    .mem_addr_i              ( mem_addr             ),
-    .mem_rd_i                ( mem_rd               ),
-    .mem_wr_i                ( mem_wr               ),
-    .mem_wrdata_i            ( mem_wrdata           ),
-    .mem_rddata_o            ( mem_rddata           ),
-    .mem_accept_o            ( mem_accept           ),
-    .mem_ack_o               ( mem_ack              ),
+logic                        axi_awvalid_w;
+logic [AXI_ID_WIDTH-1:0]     axi_awid_w   ;
+logic [AXI_ADDR_WIDTH-1:0]   axi_awaddr_w ;
+logic [2:0]                  axi_awsize_w ;
+logic [7:0]                  axi_awlen_w  ;
+logic [1:0]                  axi_awburst_w;
+logic                        axi_awready_w;
+                                          ;
+logic                        axi_wvalid_w ;
+logic [AXI_DATA_WIDTH-1:0]   axi_wdata_w  ;
+logic [AXI_DATA_WIDTH/8-1:0] axi_wstrb_w  ;
+logic                        axi_wlast_w  ;
+logic                        axi_wready_w ;
+                                          ;
+logic                        axi_bvalid_w ;
+logic [AXI_ID_WIDTH-1:0]     axi_bid_w    ;
+logic [1:0]                  axi_bresp_w  ;
+logic                        axi_bready_w ;
+                                          ;
+logic                        axi_arvalid_w;
+logic [AXI_ID_WIDTH-1:0]     axi_arid_w   ;
+logic [AXI_ADDR_WIDTH-1:0]   axi_araddr_w ;
+logic [2:0]                  axi_arsize_w ;
+logic [7:0]                  axi_arlen_w  ;
+logic [1:0]                  axi_arburst_w;
+logic                        axi_arready_w;
+                                          ;
+logic                        axi_rvalid_w ;
+logic [AXI_ID_WIDTH-1:0]     axi_rid_w    ;
+logic [AXI_DATA_WIDTH-1:0]   axi_rdata_w  ;
+logic [1:0]                  axi_rresp_w  ;
+logic                        axi_rlast_w  ;
+logic                        axi_rready_w ;
+
+mc_axi_top #(
+    .AXI_ID_WIDTH   ( 4  ),
+    .AXI_ADDR_WIDTH ( 32 ),
+    .AXI_DATA_WIDTH ( 32 ),
+    .REQ_BUF_DEPTH  ( 4  ))
+ u_mc_axi_top (
+    .clk_i                   ( clk                    ),
+    .rst_n_i                 ( ~rst                  ),
+
+    .axi_awvalid_i           ( axi_awvalid_w            ),
+    .axi_awid_i              ( axi_awid_w               ),
+    .axi_awaddr_i            ( axi_awaddr_w             ),
+    .axi_awsize_i            ( axi_awsize_w             ),
+    .axi_awlen_i             ( axi_awlen_w              ),
+    .axi_awburst_i           ( axi_awburst_w            ),
+    .axi_awready_o           ( axi_awready_w            ),
+
+    .axi_wvalid_i            ( axi_wvalid_w             ),
+    .axi_wdata_i             ( axi_wdata_w              ),
+    .axi_wstrb_i             ( axi_wstrb_w              ),
+    .axi_wlast_i             ( axi_wlast_w              ),
+    .axi_wready_o            ( axi_wready_w             ),
+
+    .axi_bvalid_o            ( axi_bvalid_w             ),
+    .axi_bid_o               ( axi_bid_w                ),
+    .axi_bresp_o             ( axi_bresp_w              ),
+    .axi_bready_i            ( axi_bready_w             ),
+
+    .axi_arvalid_i           ( axi_arvalid_w            ),
+    .axi_arid_i              ( axi_arid_w               ),
+    .axi_araddr_i            ( axi_araddr_w             ),
+    .axi_arsize_i            ( axi_arsize_w             ),
+    .axi_arlen_i             ( axi_arlen_w              ),
+    .axi_arburst_i           ( axi_arburst_w            ),
+    .axi_arready_o           ( axi_arready_w            ),
+
+    .axi_rvalid_o            ( axi_rvalid_w             ),
+    .axi_rid_o               ( axi_rid_w                ),
+    .axi_rdata_o             ( axi_rdata_w              ),
+    .axi_rresp_o             ( axi_rresp_w              ),
+    .axi_rlast_o             ( axi_rlast_w              ),
+    .axi_rready_i            ( axi_rready_w             ),
 
     .dfi_cs_n_o              ( dfi_cs_n             ),
     .dfi_ras_n_o             ( dfi_ras_n            ),
@@ -207,56 +265,6 @@ mc_top u_mc_top (
 //-----------------------------------------------------------------
 // mem_read: Perform read transfer (128-bit)
 //-----------------------------------------------------------------
-task mem_read;
-    input  [31:0]  addr;
-    output [127:0] data;
-begin
-    mem_rd     <= 1'b1;
-    mem_addr   <= addr;
-
-    @(posedge clk);
-
-    while (!mem_accept)
-    begin
-        @(posedge clk);
-    end
-    mem_rd     <= 1'b0;
-
-    while (!mem_ack)
-    begin
-        @(posedge clk);
-    end
-
-    data = mem_rddata;
-end
-endtask
-
-//-----------------------------------------------------------------
-// mem_write: Perform write transfer (128-bit)
-//-----------------------------------------------------------------
-task mem_write;
-    input [31:0]  addr;
-    input [127:0] data;
-    input [15:0]  mask;
-begin
-    mem_wr     <= mask;
-    mem_addr   <= addr;
-    mem_wrdata <= data;
-
-    @(posedge clk);
-
-    while (!mem_accept)
-    begin
-        @(posedge clk);
-    end
-    mem_wr <= 16'b0;
-
-    while (!mem_ack)
-    begin
-        @(posedge clk);
-    end
-end
-endtask
 
 //-----------------------------------------------------------------
 // Test
@@ -264,67 +272,63 @@ endtask
 reg [127:0] data;
 initial
 begin
-    dfi_init_complete = 1'b0;
+    dfi_init_complete <= 1'b0;
+    axi_awvalid_w     <= 1'b0;
+    axi_wvalid_w      <= 1'b0;
+    axi_wlast_w       <= 1'b0;
     #10000
-        dfi_init_complete = 1'b1;
-    mem_wr     = '0;
-    mem_rd     = '0;
-    mem_addr   = '0;
-    mem_wrdata = '0;
+        dfi_init_complete <= 1'b1;
 
-    // back-to-back wirte
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d1)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d2)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d3)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d4)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d999)}, 128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
+    @(posedge u_mc_axi_top.mc_mem_accept_w)
+    @(posedge clk);
+      axi_awvalid_w <= 1'b1;
+      axi_awid_w    <= 4'b0000;
+      axi_awaddr_w  <= 32'h00000100;
+      axi_awsize_w  <= 3'b101;
+      axi_awlen_w   <= 8'h4;
+      axi_awburst_w <= 2'b01;
 
-    // normal write
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)},   128'h0000_1111_2222_3333_4444_5555_6666_7777, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d0), DDR_RA_W'('d1),    DDR_CA_W'('d123)}, 128'h1111_2222_3333_4444_5555_6666_7777_8888, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d999)}, 128'h2222_3333_4444_5555_6666_7777_8888_9999, 16'hFFFF);
-    mem_write({'0, DDR_BA_W'('d2), DDR_RA_W'('d1234), DDR_CA_W'('d999)}, 128'hFFFF_1111_FFFF_1111_FFFF_1111_FFFF_1111, 16'hFFFF);
+      axi_wvalid_w  <= 1'b1;
+      axi_wdata_w   <= 32'hFFFF_1111;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h2222_3333;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h4444_5555;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h6666_7777;
+      axi_wlast_w   <= 1'b1;
+    @(posedge clk);
+      axi_awvalid_w <= 1'b0;
+      axi_wvalid_w  <= 1'b0;
+      axi_wlast_w   <= 1'b0;
 
-    // back-to-back read
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d0)}, data);
-    if (data == 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("PASS: BA0\tRA0\tCA0\tMatch!");
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d1)}, data);
-    if (data == 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("PASS: BA0\tRA0\tCA1\tMatch!");
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d2)}, data);
-    if (data == 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("PASS: BA0\tRA0\tCA2\tMatch!");
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d3)}, data);
-    if (data == 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("PASS: BA0\tRA0\tCA3\tMatch!");
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d4)}, data);
-    if (data == 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("PASS: BA0\tRA0\tCA4\tMatch!");
+    @(posedge u_mc_axi_top.mc_mem_accept_w)
+    @(posedge clk);
+      axi_awvalid_w <= 1'b1;
+      axi_awid_w    <= 4'b0000;
+      axi_awaddr_w  <= 32'h00000200;
+      axi_awsize_w  <= 3'b101;
+      axi_awlen_w   <= 8'h4;
+      axi_awburst_w <= 2'b01;
 
-    // normal read
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d0),    DDR_CA_W'('d999)}, data);
-    if (data != 128'h0000_1111_2222_3333_4444_5555_6666_7777)
-        $display("ERROR: BA0\tRA0\tCA999\tMismatch!");
+      axi_wvalid_w  <= 1'b1;
+      axi_wdata_w   <= 32'hAAAA_BBBB;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h2222_3333;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h4444_5555;
+    @(posedge clk);
+      axi_wdata_w   <= 32'h6666_7777;
+      axi_wlast_w   <= 1'b1;
+    @(posedge clk);
+      axi_awvalid_w <= 1'b0;
+      axi_wvalid_w  <= 1'b0;
+      axi_wlast_w   <= 1'b0;
 
-    mem_read ({'0, DDR_BA_W'('d0), DDR_RA_W'('d1),    DDR_CA_W'('d123)}, data);
-    if (data != 128'h1111_2222_3333_4444_5555_6666_7777_8888)
-        $display("ERROR: BA0\tRA1\tCA123\tMismatch!");
 
-    mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d2)}, data);
-    if (data != 128'h2222_3333_4444_5555_6666_7777_8888_9999)
-        $display("ERROR: BA2\tRA2\tCA2\tMismatch!");
 
-    mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d2),    DDR_CA_W'('d999)}, data);
-    if (data != 128'h2222_3333_4444_5555_6666_7777_8888_9999)
-        $display("ERROR: BA2\tRA2\tCA999\tMismatch!");
 
-    mem_read ({'0, DDR_BA_W'('d2), DDR_RA_W'('d1234), DDR_CA_W'('d999)}, data);
-    if (data != 128'hFFFF_1111_FFFF_1111_FFFF_1111_FFFF_1111)
-        $display("ERROR: BA2\tRA1234\tCA999\tMismatch!");
-
-    #1000
+    #10000
     @(posedge clk);   
     $finish;
 

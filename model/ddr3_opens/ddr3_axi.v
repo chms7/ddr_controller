@@ -44,28 +44,32 @@ module ddr3_axi
     ,input  [  3:0]  inport_awid_i
     ,input  [  7:0]  inport_awlen_i
     ,input  [  1:0]  inport_awburst_i
+    ,output          inport_awready_o
+
     ,input           inport_wvalid_i
     ,input  [ 31:0]  inport_wdata_i
     ,input  [  3:0]  inport_wstrb_i
     ,input           inport_wlast_i
+    ,output          inport_wready_o
+
+    ,output          inport_bvalid_o
+    ,output [  1:0]  inport_bresp_o
+    ,output [  3:0]  inport_bid_o
     ,input           inport_bready_i
+
     ,input           inport_arvalid_i
     ,input  [ 31:0]  inport_araddr_i
     ,input  [  3:0]  inport_arid_i
     ,input  [  7:0]  inport_arlen_i
     ,input  [  1:0]  inport_arburst_i
-    ,input           inport_rready_i
-    ,output          inport_awready_o
-    ,output          inport_wready_o
-    ,output          inport_bvalid_o
-    ,output [  1:0]  inport_bresp_o
-    ,output [  3:0]  inport_bid_o
     ,output          inport_arready_o
+
     ,output          inport_rvalid_o
     ,output [ 31:0]  inport_rdata_o
     ,output [  1:0]  inport_rresp_o
     ,output [  3:0]  inport_rid_o
     ,output          inport_rlast_o
+    ,input           inport_rready_i
     // dfi
     ,input  [ 31:0]  dfi_rddata_i
     ,input           dfi_rddata_valid_i

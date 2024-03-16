@@ -5,7 +5,7 @@
  * @Date:   2023-10-31
  * @Description: Top module of ddr controller
  */
-`include "../config/mc_defines.svh"
+`include "mc_defines.svh"
 
 module mc_top (
   input                     clk_i,
@@ -32,13 +32,13 @@ module mc_top (
   output                    dfi_reset_n_o,
   output                    dfi_odt_o,
 
-  output [DFI_DATA_W  -1:0] dfi_wrdata_o,
   output                    dfi_wrdata_en_o,
   output [DFI_DATA_W/8-1:0] dfi_wrdata_mask_o,
+  output [DFI_DATA_W  -1:0] dfi_wrdata_o,
 
   output                    dfi_rddata_en_o,
-  input  [DFI_DATA_W  -1:0] dfi_rddata_i,
   input                     dfi_rddata_valid_i,
+  input  [DFI_DATA_W  -1:0] dfi_rddata_i,
 
   output                    dfi_init_start_o,
   input                     dfi_init_complete_i,
@@ -91,7 +91,7 @@ module mc_top (
       STATE_INIT: begin
         // wait the first REFRESH after init done
         if (refresh_req_q)
-          next_state_d = STATE_IDLE;
+          next_state_d = STATE_REF;
       end
 
       STATE_IDLE: begin
@@ -432,21 +432,17 @@ module mc_top (
   // read cmd -> trddata_en -> dfi_rddata_en * 4 cycles
   wire dfi_rddata_en_w     =  (cnt_dfi_rddly_q < (15 - nRDDATA_EN + 2)) &
                               (cnt_dfi_rddly_q > (15 - nRDDATA_EN - 3));
-
-  // sample dfi_rddata * 4 cycles
-  wire dfi_rddata_sample_w =  (cnt_dfi_rddly_q < (15 - nPHY_RDLAT - 4)) &
-                              (cnt_dfi_rddly_q > (15 - nPHY_RDLAT - 9));
   
   // concat DFI_DATA_W * n/2 -> MEM_DATA_W
-  //           [ 32 * 4 ]    ->  [ 128 ]  
+  //           [ 32 * 4 ]    ->  [ 128 ]
   reg [MEM_DATA_W-1:0] mem_rddata_q;
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i) begin
       mem_rddata_q <= '0;
-    end else if (dfi_rddata_sample_w) begin
+    end else if (dfi_rddata_valid_i) begin
       mem_rddata_q <= {dfi_rddata_i[DFI_DATA_W-1:0], mem_rddata_q[MEM_DATA_W-1:DFI_DATA_W]};
-    end else begin
-      mem_rddata_q <= '0;
+    // end else begin
+    //   mem_rddata_q <= '0;
     end
   end
   
